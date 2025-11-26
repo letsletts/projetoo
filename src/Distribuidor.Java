@@ -1,143 +1,210 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
-import java.util.concurrent.*;
 
 public class Distribuidor {
 
-    // Configure aqui os IPs e Portas dos seus Receptores
+    // --- CONFIGURAÇÃO DOS SERVIDORES (IPs DA FACULDADE) ---
     private static final String[] RECEPTORS = {
-        "127.0.0.1:12345", // Exemplo local
-        //"192.168.0.10:12345", 
-        //"192.168.0.11:12345"
+        "172.16.130.68:12345",  // Máquina 1
+        "172.16.130.87:12346",  // Máquina 2
+        "172.16.130.90:12347"   // Máquina 3
     };
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
-        System.out.println("=== Distribuidor de Ordenação ===");
+        System.out.println("=== SISTEMA DISTRIBUÍDO DE ORDENAÇÃO (ATIVIDADE 2) ===");
+        
+        // 1. CONECTANDO - Antes de tudo!
+        System.out.println("\n[D] Iniciando testes de conexão com os servidores...");
+        boolean conexaoOk = testarConexoes();
 
-        // 1. Definir tamanho do vetor
-        System.out.print("Digite o tamanho do vetor (ex: 1000000): ");
-        int tamanho = 0;
-        try {
-            tamanho = Integer.parseInt(scanner.nextLine());
-        } catch (NumberFormatException e) {
-            tamanho = 100_000; // Valor padrão
-            System.out.println("Valor inválido. Usando 100.000.");
+        if (!conexaoOk) {
+            System.err.println("\n[ERRO] Não foi possível conectar a todos os servidores.");
+            System.err.println("Verifique os IPs e se o ReceptorServer está rodando neles.");
+            System.out.println("Pressione ENTER para sair.");
+            scanner.nextLine();
+            System.exit(1);
         }
 
-        // 2. Gerar vetor aleatório
-        System.out.println("Gerando vetor aleatório...");
-        byte[] vetorOriginal = new byte[tamanho];
-        Random rnd = new Random();
-        rnd.nextBytes(vetorOriginal); // Preenche com bytes aleatórios
-
-        // Medição de tempo do distribuído
-        long inicioDist = System.currentTimeMillis();
-
-        // 3. Dividir e Enviar para Receptores
-        List<byte[]> partesOrdenadasRecebidas = processarDistribuido(vetorOriginal);
+        System.out.println("[D] Conexões estabelecidas! Sistema pronto.");
         
-        // 4. Merge Final (Juntar as partes recebidas dos servidores)
-        System.out.println("[D] Realizando merge final das partes recebidas...");
-        while (partesOrdenadasRecebidas.size() > 1) {
-            byte[] p1 = partesOrdenadasRecebidas.remove(0);
-            byte[] p2 = partesOrdenadasRecebidas.remove(0);
-            byte[] merged = MergeUtils.intercalar(p1, p2);
-            partesOrdenadasRecebidas.add(merged);
+        // LOOP PRINCIPAL
+        while (true) {
+            System.out.println("\n" + "=".repeat(50));
+            
+            // 2. PERGUNTA O TAMANHO
+            int vectorSize = 100_000; // Padrão
+            System.out.print("[D] Digite o tamanho do vetor (Enter para padrão 100.000): ");
+            String inputTamanho = scanner.nextLine();
+            if (!inputTamanho.isBlank()) {
+                try {
+                    vectorSize = Integer.parseInt(inputTamanho);
+                } catch (Exception e) {}
+            }
+
+            // GERANDO
+            System.out.printf("[D] Gerando vetor aleatório de %,d elementos... ", vectorSize);
+            byte[] vetorOriginal = new byte[vectorSize];
+            new Random().nextBytes(vetorOriginal);
+            System.out.println("Concluído.");
+
+            // 3. PERGUNTA SE QUER IMPRIMIR NA TELA
+            System.out.print("[D] Deseja imprimir o vetor gerado na tela? (S/N): ");
+            if (scanner.nextLine().trim().equalsIgnoreCase("S")) {
+                imprimirVetor(vetorOriginal);
+            }
+
+            // 4. AVISO E PAUSA (ENTER)
+            System.out.println("\n[D] Tudo pronto para a ordenação distribuída.");
+            System.out.println("[D] Pressione ENTER para iniciar o envio para os Receptores...");
+            scanner.nextLine();
+
+            // 5. ENVIO POR THREADS E RECEBIMENTO
+            long inicio = System.currentTimeMillis();
+            try {
+                // Lógica de envio e recebimento
+                List<byte[]> partesRecebidas = processarDistribuido(vetorOriginal);
+                
+                // Merge Final
+                System.out.println("[D] Todas as partes recebidas. Realizando merge final...");
+                byte[] vetorFinal = realizarMergeFinal(partesRecebidas);
+                
+                long fim = System.currentTimeMillis();
+                System.out.printf("[D] SUCESSO! Ordenação concluída em %.3f segundos.%n", (fim - inicio) / 1000.0);
+
+                // --- SALVAR ARQUIVO ORDENADO (COM AUTO .TXT) ---
+                System.out.print("[D] Digite o nome do arquivo para salvar o RESULTADO (ex: saida): ");
+                String nomeArquivo = scanner.nextLine().trim();
+                
+                // Lógica inteligente do .txt
+                if (nomeArquivo.isBlank()) {
+                    nomeArquivo = "saida_ordenada.txt";
+                } else if (!nomeArquivo.toLowerCase().endsWith(".txt")) {
+                    nomeArquivo += ".txt"; // Adiciona .txt se o usuário esqueceu
+                }
+                
+                salvarEmArquivo(vetorFinal, nomeArquivo);
+
+                // --- SALVAR ARQUIVO ORIGINAL (DESORDENADO) ---
+                System.out.println("-".repeat(50));
+                System.out.print("[D] Deseja salvar também o vetor ORIGINAL (desordenado)? (S/N): ");
+                if (scanner.nextLine().trim().equalsIgnoreCase("S")) {
+                    // Gera o nome automático baseado no anterior
+                    String nomeOriginal;
+                    int pontoIndex = nomeArquivo.lastIndexOf('.'); // Pega onde tá o .txt
+                    if (pontoIndex != -1) {
+                        // Insere (nao_ordenado) antes do .txt
+                        nomeOriginal = nomeArquivo.substring(0, pontoIndex) + "(nao_ordenado)" + nomeArquivo.substring(pontoIndex);
+                    } else {
+                        nomeOriginal = nomeArquivo + "(nao_ordenado).txt";
+                    }
+                    
+                    System.out.println("[D] Salvando original como: " + nomeOriginal);
+                    salvarEmArquivo(vetorOriginal, nomeOriginal);
+                }
+
+            } catch (Exception e) {
+                System.out.println("[ERRO] Falha durante o processamento: " + e.getMessage());
+                e.printStackTrace();
+            }
+
+            // 6. PERGUNTA SE QUER NOVO VETOR
+            System.out.println("-".repeat(50));
+            System.out.print("[D] Deseja realizar uma NOVA ORDENAÇÃO com um NOVO VETOR? (S/N): ");
+            String respNovo = scanner.nextLine();
+            
+            if (!respNovo.trim().equalsIgnoreCase("S")) {
+                System.out.println("[D] Encerrando o Distribuidor. Até logo!");
+                break; 
+            }
+            System.out.println("[D] Reiniciando...\n");
         }
+        scanner.close();
+    }
 
-        byte[] vetorFinalOrdenado = partesOrdenadasRecebidas.get(0);
-        long fimDist = System.currentTimeMillis();
-        
-        System.out.printf("[D] Ordenação Distribuída concluída em %.3f segundos.%n", (fimDist - inicioDist) / 1000.0);
+    // --- MÉTODOS AUXILIARES ---
 
-        // 5. Salvar em arquivo texto (Requisito do PDF)
-        System.out.print("Digite o nome do arquivo para salvar o resultado (ex: saida.txt): ");
-        String nomeArquivo = scanner.nextLine();
-        salvarEmArquivo(vetorFinalOrdenado, nomeArquivo);
-
-        // 6. Validação (Opcional, mas bom para garantir)
-        System.out.println("Verificando se está realmente ordenado...");
-        boolean ordenado = true;
-        for(int i=0; i<vetorFinalOrdenado.length-1; i++){
-            if(vetorFinalOrdenado[i] > vetorFinalOrdenado[i+1]){
-                ordenado = false;
-                break;
+    private static boolean testarConexoes() {
+        boolean todasOk = true;
+        for (String server : RECEPTORS) {
+            String[] parts = server.split(":");
+            System.out.printf(" -> Conectando a %s ... ", server);
+            try (Socket s = new Socket()) {
+                s.connect(new InetSocketAddress(parts[0], Integer.parseInt(parts[1])), 2000);
+                System.out.println("[OK]");
+            } catch (IOException e) {
+                System.out.println("[FALHA]");
+                todasOk = false;
             }
         }
-        System.out.println("Status da Ordenação: " + (ordenado ? "SUCESSO" : "FALHA"));
-        
-        scanner.close();
+        return todasOk;
     }
 
     private static List<byte[]> processarDistribuido(byte[] vetorTotal) {
         int numServidores = RECEPTORS.length;
-        List<byte[]> resultados = new ArrayList<>();
+        List<byte[]> resultados = Collections.synchronizedList(new ArrayList<>());
         List<Thread> threads = new ArrayList<>();
-        
-        // Dividir o vetor para os servidores
         int tamanhoBloco = vetorTotal.length / numServidores;
 
         for (int i = 0; i < numServidores; i++) {
             final int index = i;
             int inicio = i * tamanhoBloco;
             int fim = (i == numServidores - 1) ? vetorTotal.length : (i + 1) * tamanhoBloco;
-            
             byte[] fatia = Arrays.copyOfRange(vetorTotal, inicio, fim);
             
             Thread t = new Thread(() -> {
-                String[] ipPort = RECEPTORS[index].split(":");
-                String host = ipPort[0];
-                int port = Integer.parseInt(ipPort[1]);
+                String ip = RECEPTORS[index];
+                try {
+                    String[] parts = ip.split(":");
+                    try (Socket socket = new Socket(parts[0], Integer.parseInt(parts[1]));
+                         ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+                         ObjectInputStream in = new ObjectInputStream(socket.getInputStream())) {
 
-                try (Socket socket = new Socket(host, port);
-                     ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
-                     ObjectInputStream in = new ObjectInputStream(socket.getInputStream())) {
+                        System.out.printf("[Thread-%d] Enviando %d elementos para %s...%n", index, fatia.length, ip);
+                        out.writeObject(new Pedido(fatia));
+                        out.flush();
 
-                    System.out.printf("[D] Enviando %d elementos para %s:%d%n", fatia.length, host, port);
-                    
-                    // Envia Pedido
-                    out.writeObject(new Pedido(fatia));
-                    out.flush();
-
-                    // Recebe Resposta
-                    Object response = in.readObject();
-                    if (response instanceof Resposta) {
-                        Resposta r = (Resposta) response;
-                        synchronized (resultados) {
-                            resultados.add(r.getVetorOrdenado());
+                        Object response = in.readObject();
+                        if (response instanceof Resposta) {
+                            resultados.add(((Resposta) response).getVetorOrdenado());
+                            System.out.printf("[Thread-%d] Recebido vetor ordenado de %s!%n", index, ip);
                         }
-                        System.out.printf("[D] Recebido vetor ordenado de %s:%d%n", host, port);
+                        out.writeObject(new ComunicadoEncerramento());
                     }
-
-                    // Encerra conexão com este servidor
-                    out.writeObject(new ComunicadoEncerramento());
-
                 } catch (Exception e) {
-                    System.err.printf("[D] Falha ao conectar com %s: %s%n", host, e.getMessage());
+                    System.err.printf("[Thread-%d] Erro com %s: %s%n", index, ip, e.getMessage());
                 }
             });
-            
             threads.add(t);
             t.start();
         }
-
-        // Aguardar todas as threads terminarem
-        for (Thread t : threads) {
-            try { t.join(); } catch (InterruptedException e) {}
-        }
-
+        for (Thread t : threads) try { t.join(); } catch (Exception e) {}
         return resultados;
     }
 
-    private static void salvarEmArquivo(byte[] vetor, String nomeArquivo) {
-        try (PrintWriter writer = new PrintWriter(new FileWriter(nomeArquivo))) {
-            writer.println("Vetor Ordenado:");
-            writer.println(Arrays.toString(vetor)); // Salva no formato [1, 2, 3...]
-            System.out.println("Arquivo salvo com sucesso: " + nomeArquivo);
-        } catch (IOException e) {
-            System.err.println("Erro ao salvar arquivo: " + e.getMessage());
+    private static byte[] realizarMergeFinal(List<byte[]> partes) {
+        List<byte[]> listaMutavel = new ArrayList<>(partes);
+        while (listaMutavel.size() > 1) {
+            byte[] p1 = listaMutavel.remove(0);
+            byte[] p2 = listaMutavel.remove(0);
+            listaMutavel.add(MergeUtils.intercalar(p1, p2));
         }
+        return listaMutavel.isEmpty() ? new byte[0] : listaMutavel.get(0);
+    }
+
+    private static void imprimirVetor(byte[] v) {
+        if (v.length > 50) {
+            System.out.println("[D] Vetor (primeiros 50): " + Arrays.toString(Arrays.copyOf(v, 50)) + "...");
+        } else {
+            System.out.println("[D] Vetor: " + Arrays.toString(v));
+        }
+    }
+
+    private static void salvarEmArquivo(byte[] vetor, String nome) {
+        try (PrintWriter w = new PrintWriter(new FileWriter(nome))) {
+            w.println(Arrays.toString(vetor));
+            System.out.println("[D] Arquivo salvo com sucesso: " + new File(nome).getAbsolutePath());
+        } catch (IOException e) { System.out.println("[D] Erro ao salvar arquivo."); }
     }
 }
