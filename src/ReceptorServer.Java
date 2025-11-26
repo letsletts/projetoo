@@ -4,7 +4,7 @@ import java.util.*;
 import java.util.concurrent.*;
 
 public class ReceptorServer {
-    private static final int PORT = 12345; // Porta padrão
+    private static final int PORT = 12345;
     private static final int BACKLOG = 50;
 
     public static void main(String[] args) {
@@ -50,7 +50,7 @@ public class ReceptorServer {
                         System.out.printf("[R] Pedido recebido com %d elementos. Processando...%n", vetorRecebido.length);
                         long t0 = System.currentTimeMillis();
 
-                        // --- Lógica de Paralelismo Interno do Receptor ---
+                        // Lógica de Paralelismo Interno do Receptor
                         byte[] vetorResultado = processarParalelamente(vetorRecebido);
                         
                         long t1 = System.currentTimeMillis();
@@ -59,7 +59,7 @@ public class ReceptorServer {
                         Resposta resp = new Resposta(vetorResultado);
                         out.writeObject(resp);
                         out.flush();
-                        out.reset(); // Importante para limpar cache de objetos
+                        out.reset(); 
                     }
                     else if (obj instanceof ComunicadoEncerramento) {
                         System.out.println("[R] ComunicadoEncerramento recebido. Fechando conexão.");
@@ -88,7 +88,7 @@ public class ReceptorServer {
             ExecutorService pool = Executors.newFixedThreadPool(numProcessadores);
             List<Future<byte[]>> futures = new ArrayList<>();
 
-            // 1. Divisão: Quebra o vetor em partes iguais para cada processador
+            // Divisão: Quebra o vetor em partes iguais para cada processador
             int tamanhoBloco = vetorCompleto.length / numProcessadores;
             
             for (int i = 0; i < numProcessadores; i++) {
@@ -98,7 +98,7 @@ public class ReceptorServer {
                 // Copia a parte correspondente
                 byte[] parte = Arrays.copyOfRange(vetorCompleto, inicio, fim);
                 
-                // 2. Ordenação: Cada thread ordena sua parte
+                // Ordenação: Cada thread ordena sua parte
                 futures.add(pool.submit(() -> {
                     Arrays.sort(parte);
                     return parte;
@@ -112,7 +112,7 @@ public class ReceptorServer {
             }
             pool.shutdown();
 
-            // 3. Merge (Intercalação): Junta as partes 2 a 2 até sobrar uma
+            // Merge (Intercalação): Junta as partes 2 a 2 até sobrar uma
             while (partesOrdenadas.size() > 1) {
                 byte[] p1 = partesOrdenadas.remove(0);
                 byte[] p2 = partesOrdenadas.remove(0);

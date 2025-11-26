@@ -1,13 +1,13 @@
 public class MergeUtils {
 
-    // Algoritmo de Intercalação (Merge) descrito no PDF
+    // Algoritmo de Intercalação 
     public static byte[] intercalar(byte[] a, byte[] b) {
         int tamanhoFinal = a.length + b.length;
         byte[] c = new byte[tamanhoFinal];
         
-        int i = 0; // cursor para vetor A
-        int j = 0; // cursor para vetor B
-        int k = 0; // cursor para vetor C (final)
+        int i = 0; 
+        int j = 0; 
+        int k = 0; 
 
         while (i < a.length && j < b.length) {
             if (a[i] <= b[j]) {

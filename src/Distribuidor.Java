@@ -4,18 +4,18 @@ import java.util.*;
 
 public class Distribuidor {
 
-    // --- CONFIGURAÇÃO DOS SERVIDORES (IPs DA FACULDADE) ---
+    // Configuração dos servidores
     private static final String[] RECEPTORS = {
-        "172.16.130.68:12345",  // Máquina 1
-        "172.16.130.87:12346",  // Máquina 2
-        "172.16.130.90:12347"   // Máquina 3
+        "172.16.130.68:12345",  
+        "172.16.130.87:12346",  
+        "172.16.130.90:12347"   
     };
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         System.out.println("=== SISTEMA DISTRIBUÍDO DE ORDENAÇÃO (ATIVIDADE 2) ===");
         
-        // 1. CONECTANDO - Antes de tudo!
+        // Conectando
         System.out.println("\n[D] Iniciando testes de conexão com os servidores...");
         boolean conexaoOk = testarConexoes();
 
@@ -33,8 +33,8 @@ public class Distribuidor {
         while (true) {
             System.out.println("\n" + "=".repeat(50));
             
-            // 2. PERGUNTA O TAMANHO
-            int vectorSize = 100_000; // Padrão
+            // Pergunta o tamanho do vetor
+            int vectorSize = 100_000; 
             System.out.print("[D] Digite o tamanho do vetor (Enter para padrão 100.000): ");
             String inputTamanho = scanner.nextLine();
             if (!inputTamanho.isBlank()) {
@@ -43,24 +43,24 @@ public class Distribuidor {
                 } catch (Exception e) {}
             }
 
-            // GERANDO
+            // Gerando o vetor
             System.out.printf("[D] Gerando vetor aleatório de %,d elementos... ", vectorSize);
             byte[] vetorOriginal = new byte[vectorSize];
             new Random().nextBytes(vetorOriginal);
             System.out.println("Concluído.");
 
-            // 3. PERGUNTA SE QUER IMPRIMIR NA TELA
+            // Pergunta para imprimir ventor
             System.out.print("[D] Deseja imprimir o vetor gerado na tela? (S/N): ");
             if (scanner.nextLine().trim().equalsIgnoreCase("S")) {
                 imprimirVetor(vetorOriginal);
             }
 
-            // 4. AVISO E PAUSA (ENTER)
+            // Aviso de que vai ordernar
             System.out.println("\n[D] Tudo pronto para a ordenação distribuída.");
             System.out.println("[D] Pressione ENTER para iniciar o envio para os Receptores...");
             scanner.nextLine();
 
-            // 5. ENVIO POR THREADS E RECEBIMENTO
+            // Envio por threads e recebimento
             long inicio = System.currentTimeMillis();
             try {
                 // Lógica de envio e recebimento
@@ -73,11 +73,11 @@ public class Distribuidor {
                 long fim = System.currentTimeMillis();
                 System.out.printf("[D] SUCESSO! Ordenação concluída em %.3f segundos.%n", (fim - inicio) / 1000.0);
 
-                // --- SALVAR ARQUIVO ORDENADO (COM AUTO .TXT) ---
+                //Salvar o arquivo
                 System.out.print("[D] Digite o nome do arquivo para salvar o RESULTADO (ex: saida): ");
                 String nomeArquivo = scanner.nextLine().trim();
                 
-                // Lógica inteligente do .txt
+                
                 if (nomeArquivo.isBlank()) {
                     nomeArquivo = "saida_ordenada.txt";
                 } else if (!nomeArquivo.toLowerCase().endsWith(".txt")) {
@@ -86,15 +86,14 @@ public class Distribuidor {
                 
                 salvarEmArquivo(vetorFinal, nomeArquivo);
 
-                // --- SALVAR ARQUIVO ORIGINAL (DESORDENADO) ---
+                //Salvar o arquivo, vetor original desordenado
                 System.out.println("-".repeat(50));
                 System.out.print("[D] Deseja salvar também o vetor ORIGINAL (desordenado)? (S/N): ");
                 if (scanner.nextLine().trim().equalsIgnoreCase("S")) {
                     // Gera o nome automático baseado no anterior
                     String nomeOriginal;
-                    int pontoIndex = nomeArquivo.lastIndexOf('.'); // Pega onde tá o .txt
+                    int pontoIndex = nomeArquivo.lastIndexOf('.'); 
                     if (pontoIndex != -1) {
-                        // Insere (nao_ordenado) antes do .txt
                         nomeOriginal = nomeArquivo.substring(0, pontoIndex) + "(nao_ordenado)" + nomeArquivo.substring(pontoIndex);
                     } else {
                         nomeOriginal = nomeArquivo + "(nao_ordenado).txt";
@@ -109,7 +108,7 @@ public class Distribuidor {
                 e.printStackTrace();
             }
 
-            // 6. PERGUNTA SE QUER NOVO VETOR
+            // Pergunta se quer ordenar outro vetor aleatorio
             System.out.println("-".repeat(50));
             System.out.print("[D] Deseja realizar uma NOVA ORDENAÇÃO com um NOVO VETOR? (S/N): ");
             String respNovo = scanner.nextLine();
@@ -123,7 +122,7 @@ public class Distribuidor {
         scanner.close();
     }
 
-    // --- MÉTODOS AUXILIARES ---
+    //Metodos auxiliares
 
     private static boolean testarConexoes() {
         boolean todasOk = true;
